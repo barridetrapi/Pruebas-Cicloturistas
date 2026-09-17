@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-apk:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,17 +19,38 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Compilar APK usando Acción Oficial de Flet
-      id: build
-      uses: flet-dev/flet-build-action@v1
+    - name: Configurar e Instalar Flutter SDK Oficial
+      uses: subosito/flutter-action@v2
       with:
-        target: apk
-        runner-python-version: "3.11"
-        bundled-python-version: "3.11"
+        channel: 'stable'
+
+    - name: Configurar Python de Producción
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Instalar Flet y componentes del sistema
+      run: |
+        python -m pip install --upgrade pip
+        pip install flet
+
+    - name: Desactivar analíticas de Flutter
+      run: flutter config --no-analytics
+
+    - name: Compilar archivo APK nativo
+      run: |
+        flet build apk --python-version 3.11
+
+    - name: Rastrear y Extraer Archivo APK
+      run: |
+        mkdir -p salida_apk
+        find . -name "*.apk" -type f -exec cp {} ./salida_apk/ \;
+        echo "=== Archivos APK localizados ==="
+        ls -la salida_apk
 
     - name: Subir APK generado como resultado descargable
       uses: actions/upload-artifact@v4
       with:
-        name: app-release-apk
-        path: ${{ steps.build.outputs.archive-path }}
+        name: RecopiladorCiclista-Android
+        path: salida_apk/
         if-no-files-found: error
