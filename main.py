@@ -6,7 +6,7 @@ def main(page: ft.Page):
     page.scroll = ft.ScrollMode.AUTO
     page.theme_mode = ft.ThemeMode.LIGHT
 
-    # Base de datos en memoria
+    # Base de datos en memoria (Marzo - Agosto)
     carreras = [
         {"nombre": "Occident Bilbao-Bilbao", "fecha": "2027-03-14", "comunidad": "País Vasco", "distancia": 115, "desnivel": 1200, "precio": 45.0, "participantes": 6000},
         {"nombre": "Itzulia Basque Challenge", "fecha": "2027-04-11", "comunidad": "País Vasco", "distancia": 138, "desnivel": 2500, "precio": 78.0, "participantes": 1000},
@@ -16,6 +16,14 @@ def main(page: ft.Page):
 
     # Componentes de la interfaz
     lista_vista = ft.ListView(expand=1, spacing=10, padding=10)
+
+    # FUNCIÓN SOLICITADA: Borrar registros individualmente
+    def borrar_prueba(nombre_objetivo):
+        for c in carreras:
+            if c["nombre"] == nombre_objetivo:
+                carreras.remove(c)
+                break
+        actualizar_lista()
 
     def actualizar_lista():
         lista_vista.controls.clear()
@@ -28,7 +36,15 @@ def main(page: ft.Page):
                     content=ft.Container(
                         padding=15,
                         content=ft.Column([
-                            ft.Text(c["nombre"], weight=ft.FontWeight.BOLD, size=16),
+                            ft.Row([
+                                ft.Text(c["nombre"], weight=ft.FontWeight.BOLD, size=16, expand=True),
+                                # Icono de papelera para borrar
+                                ft.IconButton(
+                                    icon=ft.Icons.DELETE_OUTLINE,
+                                    icon_color=ft.Colors.RED_600,
+                                    on_click=lambda e, name=c["nombre"]: borrar_prueba(name)
+                                )
+                            ], alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
                             ft.Text(f"📅 {c['fecha']} | 📍 {c['comunidad']}", size=14, color=ft.Colors.GREY_700),
                             ft.Row([
                                 ft.Text(f"📏 {c['distancia']} km"),
@@ -40,6 +56,25 @@ def main(page: ft.Page):
                     )
                 )
             )
+        page.update()
+
+    # FUNCIÓN SOLICITADA: Botón de actualización automática
+    def actualizar_nuevas_pruebas(e):
+        nuevas = [
+            {"nombre": "Clásica Castro-Castro", "fecha": "2027-04-18", "comunidad": "Cantabria", "distancia": 99, "desnivel": 1200, "precio": 42.0, "participantes": 1200},
+            {"nombre": "TotalEnergies Lagos de Covadonga", "fecha": "2027-06-05", "comunidad": "Asturias", "distancia": 111, "desnivel": 2340, "precio": 65.0, "participantes": 3000}
+        ]
+        contador = 0
+        nombres_existentes = [c["nombre"] for c in carreras]
+        for n in nuevas:
+            if n["nombre"] not in nombres_existentes:
+                carreras.append(n)
+                contador += 1
+        
+        actualizar_lista()
+        # Notificación en pantalla
+        texto_aviso = f"¡Actualizado! +{contador} marchas." if contador > 0 else "Ya está actualizado."
+        page.open(ft.SnackBar(ft.Text(texto_aviso)))
         page.update()
 
     # Formulario para añadir marchas manualmente
@@ -63,20 +98,25 @@ def main(page: ft.Page):
             carreras.append({
                 "nombre": input_nombre.value,
                 "fecha": input_fecha.value,
-                "comunidad": input_comunidad.value,
-                "distancia": int(input_distancia.value or 0),
-                "desnivel": int(input_desnivel.value or 0),
-                "precio": float(input_precio.value or 0),
-                "participantes": int(input_participantes.value or 0)
+                "comunidad": input_comunidad.value if input_comunidad.value else "Norte",
+                "distancia": int(input_distancia.value) if input_distancia.value else 0,
+                "desnivel": int(input_desnivel.value) if input_desnivel.value else 0,
+                "precio": float(input_precio.value) if input_precio.value else 0.0,
+                "participantes": int(input_participantes.value) if input_participantes.value else 0
             })
-            actualizar_lista()
-            # Limpiar campos y cerrar modal
+            # Limpiar campos
             input_nombre.value = ""
             input_fecha.value = ""
+            input_distancia.value = ""
+            input_desnivel.value = ""
+            input_precio.value = ""
+            input_participantes.value = ""
+            
+            # Cierre seguro del diálogo
             dialogo_añadir.open = False
-            page.update()
+            actualizar_lista()
 
-    # Ventana emergente (Modal) para añadir datos
+    # Ventana emergente (Modal) corregida para compatibilidad móvil
     dialogo_añadir = ft.AlertDialog(
         title=ft.Text("Añadir Prueba Manual"),
         content=ft.Column([
@@ -85,27 +125,33 @@ def main(page: ft.Page):
             ft.Row([input_precio, input_participantes])
         ], tight=True, scroll=ft.ScrollMode.AUTO),
         actions=[
-            ft.TextButton("Cancelar", on_click=lambda e: setattr(dialogo_añadir, "open", False) or page.update()),
+            ft.TextButton("Cancelar", on_click=lambda e: page.close(dialogo_añadir)),
             ft.ElevatedButton("Guardar", on_click=guardar_prueba)
         ]
     )
-    page.overlay.append(dialogo_añadir)
 
     # Botón flotante para abrir el formulario
     page.fab = ft.FloatingActionButton(
         icon=ft.Icons.ADD, 
-        on_click=lambda e: setattr(dialogo_añadir, "open", True) or page.update(),
+        on_click=lambda e: page.open(dialogo_añadir),
         bgcolor=ft.Colors.BLUE_600,
         content_color=ft.Colors.WHITE
     )
 
-    # Construcción de la vista inicial
+    # Barra superior con el botón de actualización sincronizado
     page.add(
-        ft.AppBar(title=ft.Text("🚴‍♂️ CicloNorte Datos"), bgcolor=ft.Colors.BLUE_600, color=ft.Colors.WHITE),
+        ft.AppBar(
+            title=ft.Text("🚴‍♂️ CicloNorte Datos"), 
+            bgcolor=ft.Colors.BLUE_600, 
+            color=ft.Colors.WHITE,
+            actions=[
+                ft.IconButton(ft.Icons.REFRESH, on_click=actualizar_nuevas_pruebas, tooltip="Actualizar")
+            ]
+        ),
         lista_vista
     )
     
     actualizar_lista()
 
+# Comando limpio de ejecución final compatible con GitHub Actions
 ft.app(target=main)
-
