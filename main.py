@@ -107,5 +107,5 @@ def main(page: ft.Page):
     
     actualizar_lista()
 
-ft.app(target=main, view=ft.AppView.WEB_BROWSER)
+ft.app(target=main)
 
