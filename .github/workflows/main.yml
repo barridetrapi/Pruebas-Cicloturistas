@@ -1,56 +1,45 @@
-name: Compilar Flet APK
+name: Desplegar App Ciclista en GitHub Pages
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
     - name: Clonar el repositorio
       uses: actions/checkout@v4
 
-    - name: Configurar Java JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-
-    - name: Configurar e Instalar Flutter SDK Oficial
-      uses: subosito/flutter-action@v2
-      with:
-        channel: 'stable'
-
-    - name: Configurar Python de Producción
+    - name: Configurar Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
-    - name: Instalar Flet y componentes del sistema
+    - name: Instalar Flet
       run: |
         python -m pip install --upgrade pip
         pip install flet
 
-    - name: Desactivar analíticas de Flutter
-      run: flutter config --no-analytics
-
-    - name: Compilar archivo APK nativo
+    - name: Compilar la App para Web Móvil
       run: |
-        flet build apk --python-version 3.11
+        flet publish main.py --dist-dir ./public
 
-    - name: Rastrear y Extraer Archivo APK
-      run: |
-        mkdir -p salida_apk
-        find . -name "*.apk" -type f -exec cp {} ./salida_apk/ \;
-        echo "=== Archivos APK localizados ==="
-        ls -la salida_apk
+    - name: Configurar Páginas de GitHub
+      uses: actions/configure-pages@v4
 
-    - name: Subir APK generado como resultado descargable
-      uses: actions/upload-artifact@v4
+    - name: Subir artefacto Web
+      uses: actions/upload-pages-artifact@v3
       with:
-        name: RecopiladorCiclista-Android
-        path: salida_apk/
-        if-no-files-found: error
+        path: './public'
+
+    - name: Desplegar en internet
+      id: deployment
+      uses: actions/deploy-pages@v4
